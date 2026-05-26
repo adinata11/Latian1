@@ -98,7 +98,7 @@ def predict_orange(model, jumlah_spm, revisi_dipa, deviasi_rpd_persen,
     return label, float(proba[0]), float(proba[1])   # label, p_tidak, p_ya
 
 
-# ── Load assets ───────────────────────────────────────────────────────────────
+# ── Load assets ──────────────────────────────────────────────────────────────
 df = load_data()
 model = load_model()
 
@@ -165,11 +165,11 @@ Analisis & Prediksi Ketercapaian Realisasi Anggaran ≥ 95%
 """, unsafe_allow_html=True)
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs(["📊 Overview", "🔎 Analisis Detail", "🤖 Prediksi"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "🔎 Analisis Detail", "🤖 Prediksi", "🔬 Advanced Analytics"])
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
 # TAB 1 — OVERVIEW
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
 with tab1:
     total     = len(fdf)
     ya_count  = (fdf["realisasi_tercapai_95persen"] == "Ya").sum()
@@ -263,9 +263,9 @@ with tab1:
                            xaxis_title="Persentase (%)", legend=dict(orientation="h", y=1.08))
     st.plotly_chart(fig_bar, use_container_width=True)
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
 # TAB 2 — ANALISIS DETAIL
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
 with tab2:
     col_l, col_r = st.columns(2)
 
@@ -344,9 +344,9 @@ with tab2:
         st.dataframe(fdf[display_cols].reset_index(drop=True),
                      use_container_width=True, height=350)
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
 # TAB 3 — PREDIKSI
-# ═══════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════
 with tab3:
     st.markdown("""
     <p style='color:#8b92a5; margin-bottom:24px'>
@@ -502,3 +502,237 @@ with tab3:
         st.plotly_chart(fig_cm, use_container_width=True)
 
         st.dataframe(res_df.reset_index(drop=True), use_container_width=True, height=320)
+
+# ════════════════════════════════════════════════════════════════════════════
+# TAB 4 — ADVANCED ANALYTICS (NEW)
+# ════════════════════════════════════════════════════════════════════════════
+with tab4:
+    st.markdown("""
+    <p style='color:#8b92a5; margin-bottom:24px'>
+    Analitik tingkat lanjut untuk menggali insight mendalam dari multi-dimensi data
+    </p>""", unsafe_allow_html=True)
+
+    # ── 1. PARALLEL CATEGORIES DIAGRAM
+    st.markdown("<div class='section-header'>1️⃣ Analisis Alur Multi-Dimensi (Parallel Categories)</div>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#8b92a5; font-size:0.9rem'>Melihat aliran data dari Kementerian → Tipe Satker → Jenis Belanja → Hasil Ketercapaian</p>", unsafe_allow_html=True)
+    
+    try:
+        fig_parallel = px.parallel_categories(
+            fdf[["nama_kementerian", "tipe_satker", "jenis_belanja_utama", "realisasi_tercapai_95persen"]],
+            color="realisasi_tercapai_95persen",
+            color_discrete_map={"Ya": COLOR_YA, "Tidak": COLOR_TIDAK},
+            labels={
+                "nama_kementerian": "Kementerian",
+                "tipe_satker": "Tipe Satker",
+                "jenis_belanja_utama": "Jenis Belanja",
+                "realisasi_tercapai_95persen": "Ketercapaian"
+            }
+        )
+        fig_parallel.update_layout(**PLOTLY_THEME, height=400)
+        st.plotly_chart(fig_parallel, use_container_width=True)
+    except:
+        st.warning("Data tidak cukup untuk parallel categories")
+
+    st.markdown("---")
+
+    # ── 2. 2D DENSITY HEATMAP
+    st.markdown("<div class='section-header'>2️⃣ Density Clustering: IKPA vs Deviasi RPD</div>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#8b92a5; font-size:0.9rem'>Identifikasi konsentrasi data dan outlier dalam hubungan dua variabel utama</p>", unsafe_allow_html=True)
+    
+    fig_density = px.density_contour(
+        fdf,
+        x="skor_ikpa",
+        y="deviasi_rpd_persen",
+        color_continuous_scale="Viridis",
+        marginal_x="histogram",
+        marginal_y="histogram",
+        labels={
+            "skor_ikpa": "Skor IKPA",
+            "deviasi_rpd_persen": "Deviasi RPD (%)"
+        }
+    )
+    fig_density.update_layout(**PLOTLY_THEME, height=450, coloraxis_colorbar=dict(title="Density"))
+    st.plotly_chart(fig_density, use_container_width=True)
+
+    st.markdown("---")
+
+    # ── 3. VIOLIN PLOT
+    st.markdown("<div class='section-header'>3️⃣ Distribusi IKPA per Tipe Satker</div>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#8b92a5; font-size:0.9rem'>Pola distribusi skor IKPA berdasarkan tipe satker dan status ketercapaian</p>", unsafe_allow_html=True)
+    
+    fig_violin = px.violin(
+        fdf,
+        x="tipe_satker",
+        y="skor_ikpa",
+        color="realisasi_tercapai_95persen",
+        box=True,
+        points=False,
+        color_discrete_map={"Ya": COLOR_YA, "Tidak": COLOR_TIDAK},
+        labels={
+            "tipe_satker": "Tipe Satker",
+            "skor_ikpa": "Skor IKPA",
+            "realisasi_tercapai_95persen": "Status"
+        }
+    )
+    fig_violin.update_layout(**PLOTLY_THEME, height=400)
+    st.plotly_chart(fig_violin, use_container_width=True)
+
+    st.markdown("---")
+
+    # ── 4. SUNBURST CHART
+    st.markdown("<div class='section-header'>4️⃣ Hierarki Pagu Anggaran (Sunburst)</div>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#8b92a5; font-size:0.9rem'>Drill-down interaktif: proporsi pagu per Kementerian → Tipe Satker → Status</p>", unsafe_allow_html=True)
+    
+    sunburst_data = fdf.groupby(["nama_kementerian", "tipe_satker", "realisasi_tercapai_95persen"]).agg({
+        "pagu_miliar": "sum"
+    }).reset_index()
+    sunburst_data.columns = ["Kementerian", "Tipe Satker", "Status", "Pagu"]
+    
+    fig_sunburst = px.sunburst(
+        sunburst_data,
+        labels="Kementerian",
+        parents="",
+        values="Pagu",
+        color="Status",
+        color_discrete_map={"Ya": COLOR_YA, "Tidak": COLOR_TIDAK},
+    )
+    fig_sunburst.update_layout(**PLOTLY_THEME, height=450)
+    st.plotly_chart(fig_sunburst, use_container_width=True)
+
+    st.markdown("---")
+
+    # ── 5. CORRELATION HEATMAP
+    st.markdown("<div class='section-header'>5️⃣ Matriks Korelasi Variabel Kunci</div>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#8b92a5; font-size:0.9rem'>Hubungan antar prediktor: SPM, Revisi DIPA, Deviasi RPD, IKPA, Realisasi TW3</p>", unsafe_allow_html=True)
+    
+    correlation_vars = ["jumlah_spm", "revisi_dipa", "deviasi_rpd_persen", 
+                        "skor_ikpa", "realisasi_tw3_persen", "pagu_miliar"]
+    corr_matrix = fdf[correlation_vars].corr()
+    
+    fig_corr = px.imshow(
+        corr_matrix,
+        color_continuous_scale="RdBu",
+        zmin=-1, zmax=1,
+        text_auto=".2f",
+        labels={
+            "jumlah_spm": "Jumlah SPM",
+            "revisi_dipa": "Revisi DIPA",
+            "deviasi_rpd_persen": "Deviasi RPD",
+            "skor_ikpa": "Skor IKPA",
+            "realisasi_tw3_persen": "Realisasi TW3",
+            "pagu_miliar": "Pagu (Miliar)"
+        }
+    )
+    fig_corr.update_layout(**PLOTLY_THEME, height=400)
+    st.plotly_chart(fig_corr, use_container_width=True)
+
+    st.markdown("---")
+
+    # ── 6. TREEMAP
+    st.markdown("<div class='section-header'>6️⃣ Proporsi Anggaran per Kementerian & Status</div>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#8b92a5; font-size:0.9rem'>Visualisasi ukuran pagu anggaran dengan status ketercapaian</p>", unsafe_allow_html=True)
+    
+    treemap_data = fdf.groupby(["nama_kementerian", "realisasi_tercapai_95persen"]).agg({
+        "pagu_miliar": "sum",
+        "skor_ikpa": "mean",
+        "realisasi_tw3_persen": "mean"
+    }).reset_index()
+    treemap_data["label"] = treemap_data.apply(
+        lambda x: f"{x['nama_kementerian']}<br>({x['realisasi_tercapai_95persen']})",
+        axis=1
+    )
+    
+    fig_treemap = px.treemap(
+        treemap_data,
+        labels="label",
+        parents="nama_kementerian",
+        values="pagu_miliar",
+        color="realisasi_tw3_persen",
+        color_continuous_scale="RdYlGn",
+        hover_data={
+            "skor_ikpa": ":.1f",
+            "realisasi_tw3_persen": ":.1f"
+        }
+    )
+    fig_treemap.update_layout(**PLOTLY_THEME, height=450)
+    st.plotly_chart(fig_treemap, use_container_width=True)
+
+    st.markdown("---")
+
+    # ── 7. RADAR CHART COMPARISON
+    st.markdown("<div class='section-header'>7️⃣ Profil Perbandingan Tipe Satker (Radar Chart)</div>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#8b92a5; font-size:0.9rem'>Perbandingan multi-dimensi profil setiap tipe satker</p>", unsafe_allow_html=True)
+    
+    radar_data = fdf.groupby("tipe_satker").agg({
+        "realisasi_tw3_persen": "mean",
+        "skor_ikpa": "mean",
+        "jumlah_spm": "mean",
+        "deviasi_rpd_persen": lambda x: 100 - x.mean()  # Inverse untuk interpretasi lebih baik
+    }).reset_index()
+    
+    # Normalisasi
+    for col in ["realisasi_tw3_persen", "skor_ikpa", "jumlah_spm", "deviasi_rpd_persen"]:
+        radar_data[col] = (radar_data[col] / radar_data[col].max() * 100).round(1)
+    
+    fig_radar = go.Figure()
+    
+    for _, row in radar_data.iterrows():
+        fig_radar.add_trace(go.Scatterpolar(
+            r=[row["realisasi_tw3_persen"], row["skor_ikpa"], 
+               row["jumlah_spm"], row["deviasi_rpd_persen"]],
+            theta=["Realisasi TW3", "Skor IKPA", "SPM Volume", "Konsistensi RPD"],
+            fill="toself",
+            name=row["tipe_satker"],
+            opacity=0.7
+        ))
+    
+    fig_radar.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100],
+                tickfont=dict(color="#8b92a5"),
+            ),
+            angularaxis=dict(tickfont=dict(color="#c8cfe0"))
+        ),
+        **PLOTLY_THEME,
+        height=450,
+        font=dict(color="#c8cfe0")
+    )
+    st.plotly_chart(fig_radar, use_container_width=True)
+
+    st.markdown("---")
+
+    # ── 8. SUMMARY INSIGHTS
+    st.markdown("<div class='section-header'>💡 Key Insights dari Advanced Analytics</div>", unsafe_allow_html=True)
+    
+    col_i1, col_i2, col_i3 = st.columns(3)
+    
+    with col_i1:
+        # Highest achieving ministry
+        best_ministry = fdf.groupby("nama_kementerian").agg({
+            "realisasi_tercapai_95persen": lambda x: (x == "Ya").sum() / len(x) * 100
+        }).idxmax()[0]
+        best_pct = fdf[fdf["nama_kementerian"] == best_ministry].agg({
+            "realisasi_tercapai_95persen": lambda x: (x == "Ya").sum() / len(x) * 100
+        }).values[0][0]
+        
+        st.metric("🏆 Kementerian Terbaik", best_ministry, f"{best_pct:.1f}% Tercapai")
+    
+    with col_i2:
+        # Correlation between IKPA and achievement
+        corr_ikpa_result = fdf["skor_ikpa"].corr(
+            (fdf["realisasi_tercapai_95persen"] == "Ya").astype(int)
+        )
+        st.metric("📊 Korelasi IKPA-Tercapai", f"{corr_ikpa_result:.3f}", "Kuat Positif" if corr_ikpa_result > 0.5 else "Sedang" if corr_ikpa_result > 0.3 else "Lemah")
+    
+    with col_i3:
+        # Best performing satker type
+        best_type = fdf.groupby("tipe_satker").agg({
+            "realisasi_tercapai_95persen": lambda x: (x == "Ya").sum() / len(x) * 100
+        }).idxmax()[0]
+        best_type_pct = fdf[fdf["tipe_satker"] == best_type].agg({
+            "realisasi_tercapai_95persen": lambda x: (x == "Ya").sum() / len(x) * 100
+        }).values[0][0]
+        
+        st.metric("🎯 Tipe Satker Terbaik", best_type, f"{best_type_pct:.1f}% Tercapai")
